@@ -1,0 +1,33 @@
+# ==============================================================================
+# ForgeCloud Backend .gitignore
+# Excludes Python bytecode, virtual environments, caches, and local env files
+# ==============================================================================
+
+# Local Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Bytecode & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Testing & Coverage Artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build & Packaging Outputs
+dist/
+build/
+*.egg-info/
+*.egg

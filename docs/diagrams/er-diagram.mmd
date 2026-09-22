@@ -1,0 +1,68 @@
+erDiagram
+    USERS ||--o{ APPLICATIONS : creates
+    APPLICATIONS ||--o{ DEPLOYMENTS : has
+    DEPLOYMENTS ||--o{ DEPLOYMENT_EVENTS : produces
+    APPLICATIONS ||--|| INFRASTRUCTURE : uses
+    USERS ||--o{ AUDIT_LOGS : creates
+
+    USERS {
+        uuid id PK "Unique user identifier"
+        string name "User full name"
+        string email UK "User login email address"
+        string password_hash "Argon2/Bcrypt hashed password"
+        string role "ADMIN | DEVELOPER | VIEWER"
+        timestamp created_at "Account creation timestamp"
+        timestamp updated_at "Account modification timestamp"
+    }
+
+    APPLICATIONS {
+        uuid id PK "Unique application identifier"
+        string name UK "Application unique name"
+        string repository_url "Git source repository URL"
+        string branch "Git tracking branch e.g. main"
+        int port "Internal container listening port"
+        string runtime "python | nodejs | golang | dockerfile"
+        uuid created_by FK "Reference to USERS.id"
+        timestamp created_at "Record creation timestamp"
+        timestamp updated_at "Record modification timestamp"
+    }
+
+    DEPLOYMENTS {
+        uuid id PK "Unique deployment identifier"
+        uuid application_id FK "Reference to APPLICATIONS.id"
+        string version "Semantic release version or git tag"
+        string image "Full container image URI (ECR tag)"
+        string status "PENDING | BUILDING | DEPLOYING | RUNNING | FAILED | ROLLED_BACK"
+        string environment "dev | staging | prod"
+        timestamp created_at "Deployment initiation timestamp"
+        timestamp updated_at "Deployment status updated timestamp"
+    }
+
+    INFRASTRUCTURE {
+        uuid id PK "Unique infrastructure record identifier"
+        uuid application_id FK "Reference to APPLICATIONS.id (1:1)"
+        string terraform_workspace "Terraform workspace name"
+        string region "AWS Region e.g. us-east-1"
+        string cluster_name "Target EKS cluster name"
+        string status "PROVISIONED | PENDING | FAILED | DESTROYED"
+        timestamp created_at "Infrastructure provisioning timestamp"
+        timestamp updated_at "Infrastructure state update timestamp"
+    }
+
+    DEPLOYMENT_EVENTS {
+        uuid id PK "Unique event record identifier"
+        uuid deployment_id FK "Reference to DEPLOYMENTS.id"
+        string event_type "INFO | WARNING | ERROR | PROGRESS"
+        text message "Descriptive status or log message"
+        timestamp timestamp "Event emission timestamp"
+    }
+
+    AUDIT_LOGS {
+        uuid id PK "Unique audit entry identifier"
+        uuid user_id FK "Reference to USERS.id"
+        string action "CREATE | UPDATE | DELETE | DEPLOY | ROLLBACK"
+        string resource "USER | APPLICATION | DEPLOYMENT | INFRASTRUCTURE"
+        string resource_id "Identifier of target resource"
+        json details "Optional context or diff metadata"
+        timestamp timestamp "Audit record timestamp"
+    }

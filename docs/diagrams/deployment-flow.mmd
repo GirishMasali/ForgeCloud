@@ -1,0 +1,70 @@
+sequenceDiagram
+    autonumber
+    actor Dev as Developer / Engineer
+    participant UI as ForgeCloud Dashboard (React)
+    participant API as FastAPI Control Plane
+    participant DB as PostgreSQL Database
+    participant Git as GitHub Repository
+    participant GHA as GitHub Actions CI
+    participant ECR as Amazon ECR
+    participant Argo as Argo CD Controller
+    participant EKS as Amazon EKS Cluster
+    participant Obs as Observability (Prometheus/CW)
+
+    Dev->>UI: Trigger Deployment (app_id, version, env)
+    UI->>API: POST /api/applications/{id}/deploy
+    API->>DB: Record Deployment (status: PENDING)
+    API->>DB: Log Deployment Event ("Deployment triggered")
+    API->>Git: Commit updated deployment target / trigger CI
+    API->>DB: Update Deployment (status: BUILDING)
+    API-->>UI: Return Deployment ID & Initial Status
+
+    Note over Git,GHA: Continuous Integration Stage
+    Git->>GHA: Trigger CI Pipeline (Push/Dispatch)
+    GHA->>GHA: Run Unit & Lint Tests
+    alt Tests Fail
+        GHA-->>Git: Report CI Failure
+        API->>DB: Update Deployment (status: FAILED)
+        API->>DB: Log Deployment Event ("Tests failed")
+    else Tests Pass
+        GHA->>GHA: Build Docker Image
+        GHA->>ECR: Authenticate & Push Tagged Image (git-SHA)
+        GHA->>Git: Update K8s Manifest / Helm Image Tag
+    end
+
+    Note over Git,Argo: Continuous Delivery / GitOps Stage
+    Argo->>Git: Poll / Webhook detects manifest change
+    Argo->>Argo: Compare Live State vs Desired Git State
+    API->>DB: Update Deployment (status: DEPLOYING)
+
+    Argo->>EKS: Apply Deployment Manifest (Sync)
+    EKS->>ECR: Pull Container Image
+    EKS->>EKS: Create New Application Pods (RollingUpdate)
+    
+    loop Health Checks
+        EKS->>EKS: Execute Readiness & Liveness Probes
+    end
+
+    alt Probes Pass (Healthy)
+        EKS->>EKS: Route Service Traffic to New Pods
+        EKS->>EKS: Terminate Old Pods
+        Argo-->>API: Sync Succeeded (Healthy)
+        API->>DB: Update Deployment (status: RUNNING)
+        API->>DB: Log Deployment Event ("Deployment successful")
+    else Probes Fail or CrashLoopBackOff (Unhealthy)
+        Argo-->>API: Sync Degraded / Health Check Failed
+        API->>DB: Update Deployment (status: FAILED)
+        API->>DB: Log Deployment Event ("Deployment failed health checks")
+        opt Rollback Execution
+            Dev->>UI: Trigger Rollback
+            UI->>API: POST /api/applications/{id}/rollback
+            API->>Git: Revert Manifest to Last Known-Good Version
+            Argo->>EKS: Sync Previous Manifest
+            API->>DB: Update Deployment (status: ROLLED_BACK)
+            API->>DB: Log Deployment Event ("Rollback complete")
+        end
+    end
+
+    Obs->>EKS: Scrape Metrics & Collect Logs
+    API->>Obs: Query Deployment Metrics & Logs
+    API-->>UI: Real-time Status, Logs & Latency / Replicas

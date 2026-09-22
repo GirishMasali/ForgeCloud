@@ -1,0 +1,33 @@
+# ==============================================================================
+# ForgeCloud Backend Dependencies (Python 3.10+)
+# Synchronized with backend/pyproject.toml & docs/IMPLEMENTATION_PLAN.md
+# ==============================================================================
+
+# Web Framework & Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Data Validation & Settings
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Database & ORM (ADR-002: Synchronous SQLAlchemy 2.0 with psycopg2-binary)
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.11.0
+
+# Security & Authentication (JWT + Password Hashing)
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0,<4.1.0
+
+# Observability & Metrics
+prometheus-client>=0.17.0
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+
+# Development & Testing Dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0

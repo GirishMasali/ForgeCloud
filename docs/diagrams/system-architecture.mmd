@@ -1,0 +1,90 @@
+graph TD
+    subgraph Users ["Actors"]
+        Dev["Developer / Platform Engineer"]
+    end
+
+    subgraph PresentationLayer ["Presentation Layer"]
+        UI["React Dashboard (SPA)<br/>Vite / React.js / JavaScript<br/>Tailored Dark UI / Role-based Views"]
+    end
+
+    subgraph ControlPlaneLayer ["Control Plane Layer"]
+        API["FastAPI Control Plane<br/>Python 3.10+ / REST API / JWT Auth / RBAC"]
+        AuthSvc["Auth Service"]
+        AppSvc["Application Service"]
+        DeploySvc["Deployment Service"]
+        InfraSvc["Infrastructure Service"]
+        MonSvc["Monitoring Service"]
+        AuditSvc["Audit Service"]
+    end
+
+    subgraph DataLayer ["Data & State Layer"]
+        DB[("PostgreSQL Database<br/>users, applications, deployments,<br/>infrastructure, deployment_events, audit_logs")]
+    end
+
+    subgraph AutomationAndArtifacts ["Automation & Artifacts"]
+        TF["Terraform (IaC Engine)<br/>VPC, IAM, EKS, ECR, Security Groups"]
+        GHA["GitHub Actions CI/CD<br/>Test, Docker Build, Tag, Push"]
+        ECR["Amazon ECR<br/>Immutable Container Images"]
+    end
+
+    subgraph GitOpsLayer ["GitOps Engine"]
+        GitRepo["Git Repository (App & Helm/Manifests)"]
+        ArgoCD["Argo CD (GitOps Controller)<br/>Reconciles Desired State to Cluster"]
+    end
+
+    subgraph RuntimeLayer ["Cloud Runtime Layer (AWS EKS)"]
+        EKS["Amazon EKS Cluster (VPC Private Subnets)"]
+        Ingress["AWS Load Balancer Controller / Ingress"]
+        K8sSvc["Kubernetes Services (ClusterIP)"]
+        AppPods["Application Pods<br/>(Health Probes, HPA, Network Policies)"]
+    end
+
+    subgraph ObservabilityLayer ["Observability & SRE Layer"]
+        Prom["Prometheus (Metrics Collection)"]
+        Grafana["Grafana (Dashboards)"]
+        OTel["OpenTelemetry (Distributed Tracing)"]
+        CW["Amazon CloudWatch (Centralized Logs & Alarms)"]
+    end
+
+    %% Flows
+    Dev -->|HTTPS / Browser| UI
+    UI -->|REST API + JWT| API
+
+    API --> AuthSvc
+    API --> AppSvc
+    API --> DeploySvc
+    API --> InfraSvc
+    API --> MonSvc
+    API --> AuditSvc
+
+    AuthSvc --> DB
+    AppSvc --> DB
+    DeploySvc --> DB
+    InfraSvc --> DB
+    AuditSvc --> DB
+
+    InfraSvc -.->|Provisions / Manages| TF
+    TF -->|Provisions Cloud Resources| EKS
+    TF -->|Provisions Repositories| ECR
+
+    DeploySvc -->|Triggers Pipeline / Manifest Update| GitRepo
+    GitRepo -->|Webhook / Push| GHA
+    GHA -->|Build & Push Image| ECR
+    GHA -->|Update Deployment Target| GitRepo
+
+    GitRepo -->|Tracks Desired State| ArgoCD
+    ArgoCD -->|Reconciles / Syncs| EKS
+
+    EKS --> Ingress
+    Ingress --> K8sSvc
+    K8sSvc --> AppPods
+    AppPods -.->|Database Connection| DB
+
+    AppPods -->|Exposes /metrics| Prom
+    Prom -->|Metrics Source| Grafana
+    AppPods -->|Traces| OTel
+    AppPods -->|stdout / stderr| CW
+    
+    Prom -.->|Queried by| MonSvc
+    CW -.->|Queried by| MonSvc
+    MonSvc -.->|Aggregated Metrics & Health| UI

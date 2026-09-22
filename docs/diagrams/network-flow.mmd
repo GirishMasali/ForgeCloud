@@ -1,0 +1,50 @@
+flowchart LR
+    subgraph Internet ["Public Internet / Client Tier"]
+        Client["Client Browser / API Consumer"]
+        DNS["Route 53 / DNS Resolution"]
+    end
+
+    subgraph AWS_VPC ["AWS Virtual Private Cloud (VPC: 10.0.0.0/16)"]
+        subgraph PublicSubnets ["Public Subnets (10.0.1.0/24, 10.0.2.0/24)"]
+            IGW["Internet Gateway (IGW)"]
+            ALB["Application Load Balancer (ALB)<br/>Security Group: sg-alb (Port 80/443)"]
+            NAT["NAT Gateway (Outbound Egress)"]
+        end
+
+        subgraph PrivateSubnets ["Private App Subnets (10.0.10.0/24, 10.0.20.0/24)"]
+            subgraph EKSCluster ["EKS Cluster (Kubernetes Runtime)"]
+                IngressCtrl["AWS Load Balancer Controller / Ingress<br/>Namespace: kube-system"]
+                
+                subgraph AppNamespace ["Application Namespace: forgecloud-apps"]
+                    K8sSvc["Kubernetes Service (ClusterIP)<br/>Port: 80 / TargetPort: 8000"]
+                    
+                    subgraph PodMesh ["Managed Pods (HPA Managed Replicas)"]
+                        Pod1["App Pod 1<br/>Port: 8000<br/>Labels: app=service-a"]
+                        Pod2["App Pod 2<br/>Port: 8000<br/>Labels: app=service-a"]
+                    end
+                    
+                    NetPol["Kubernetes NetworkPolicy<br/>Allows ingress from Ingress Controller only<br/>Allows egress to DB & DNS"]
+                end
+            end
+        end
+
+        subgraph DatabaseSubnets ["Isolated Data Subnets (10.0.100.0/24, 10.0.200.0/24)"]
+            DB[("PostgreSQL Database (RDS / StatefulSet)<br/>Port: 5432<br/>Security Group: sg-db<br/>(Ingress strictly from sg-eks-nodes)")]
+        end
+    end
+
+    %% Inbound Request Flow
+    Client -->|1. Resolves Domain| DNS
+    DNS -.->|Returns ALB IP / CNAME| Client
+    Client -->|2. HTTPS (Port 443)| IGW
+    IGW -->|Route to ALB| ALB
+    ALB -->|3. Forward to NodePort / TargetGroup| IngressCtrl
+    IngressCtrl -->|4. Route based on Path/Host| K8sSvc
+    K8sSvc -->|5. Round-Robin Load Balance| Pod1
+    K8sSvc -->|5. Round-Robin Load Balance| Pod2
+    Pod1 -->|6. Query (Port 5432 / TLS)| DB
+    Pod2 -->|6. Query (Port 5432 / TLS)| DB
+
+    %% Outbound Egress Flow
+    Pod1 -.->|Outbound Egress for external APIs/ECR| NAT
+    NAT -.->|Egress to Internet| IGW
