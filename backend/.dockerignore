@@ -1,0 +1,19 @@
+# ==============================================================================
+# ForgeCloud Backend .dockerignore
+# Excludes development artifacts, caches, virtual environments, and secrets
+# ==============================================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.coverage.*
+*.log
+
+# Sensitive environment configuration
+.env
+.env.*
+!*.example

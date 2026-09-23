@@ -1,0 +1,25 @@
+# ==============================================================================
+# ForgeCloud Root .dockerignore
+# ==============================================================================
+
+.git/
+.agents/
+.vscode/
+
+# Node / Frontend
+**/node_modules/
+frontend/dist/
+
+# Python / Backend
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/venv/
+**/.pytest_cache/
+**/.coverage/
+**/*.log
+
+# Environment & Secrets
+**/.env
+**/.env.*
+!**/.env.example
