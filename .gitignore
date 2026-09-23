@@ -78,14 +78,17 @@ frontend/build/
 .eslintcache
 
 # --- Terraform & IaC Artifacts (Rule 4 & Rule 11) ---
-**/.terraform/*
+.terraform/
+**/.terraform/
 *.tfstate
 *.tfstate.*
 *.tfstate.backup
+.terraform.tfstate.lock.info
 crash.log
 crash.*.log
 *.tfvars
 *.tfvars.json
+!*.tfvars.example
 override.tf
 override.tf.json
 *_override.tf

@@ -2,16 +2,18 @@
 
 **Project:** ForgeCloud — Self-Service Cloud-Native Internal Developer Platform  
 **Current Date:** 2026-09-23  
-**Current State:** Phase 1, Phase 2, Phase 3, Phase 4, & Phase 5 Complete (Docker Local Workflow Verified)
-**Next Phase:** Phase 6: Terraform AWS Infrastructure
+**Current State:** Phase 1 through Phase 6 Complete (Terraform AWS Infrastructure Verified)
+**Next Phase:** Phase 7: Kubernetes Deployment & HPA
 
 ---
 
 ## 1. Executive Summary
 
-Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), and Phase 5 (Docker Local Workflow) are complete and verified.
+Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), Phase 5 (Docker Local Workflow), and Phase 6 (Terraform AWS Infrastructure) are complete and verified.
 
-The platform control plane now features unified local execution via Docker Compose orchestrating PostgreSQL 15, FastAPI control plane, React Vite frontend (Nginx production runtime with SPA client routing and `/api/` reverse proxy), and the Python sample application (`sample-backend-service`). All containers run with non-root privileges and health checks. Schema migrations and seed data have been verified running against the containerized PostgreSQL database with volume persistence, while preserving 100% test passing (60/60 backend tests) and clean production builds.
+The platform infrastructure layer is now fully codified in Terraform (AWS provider `~> 5.0`, `required_version >= 1.5.0`) with a clean, reusable modular architecture covering VPC networking (6 subnets across 2 AZs: public, private, and isolated database tier), security groups (ALB, EKS control plane, worker nodes, and isolated PostgreSQL), IAM roles/policies (EKS cluster, managed worker node group, and GitHub Actions OIDC federation), Amazon ECR container repositories (`forgecloud-apps`, `sample-backend-service` with automated image scanning and lifecycle pruning), and Amazon EKS managed Kubernetes cluster (`v1.30` control plane, managed node groups with `t3.medium` instances, and OIDC IRSA integration).
+
+Cost-conscious infrastructure design (ADR-004) enables a single NAT Gateway in development (`single_nat_gateway = true`), reducing standing cloud networking costs by 50%. Complete environment overlays (`environments/dev` and `environments/prod`) provide environment-specific sizing. Local static analysis (`terraform fmt`, `terraform init`, and `terraform validate`) confirmed 100% syntactic and structural validity across root and environment configurations without any live cloud credentials or destructive commands. Full regression testing confirmed zero regressions across Phase 1-5 functionality (60/60 backend tests pass; frontend build 100% successful).
 
 ---
 
@@ -24,7 +26,7 @@ The platform control plane now features unified local execution via Docker Compo
 | **Phase 3** | **Authentication & RBAC** | **COMPLETE** | Password hashing (bcrypt), JWT generation/validation, user registration (`POST /api/auth/register`), login (`POST /api/auth/login`), profile (`GET /api/users/me`), RBAC guards (`ADMIN`, `DEVELOPER`, `VIEWER`), and 22 automated pytest tests verified (37 total backend tests passing). |
 | **Phase 4** | **Application Management & Dashboard** | **COMPLETE** | Application CRUD endpoints (`/api/applications`), Pydantic validation schemas, domain service layer, RBAC enforcement, React 18 frontend with Vanilla CSS design tokens, 13 route views, centralized Axios client, and 23 automated tests (60 total backend tests passing; frontend build 100% successful). |
 | **Phase 5** | **Docker Local Workflow** | **COMPLETE** | Production-ready multi-stage Dockerfiles (`backend`, `frontend`, `sample-app`), root `docker-compose.yml`, PostgreSQL 15 volume persistence, bridge networking, live container Alembic migration execution, and full API/RBAC verification completed. |
-| **Phase 6** | **Terraform AWS Infrastructure** | PLANNED | Modular Terraform IaC for VPC, IAM, ECR, and Amazon EKS cluster resources. |
+| **Phase 6** | **Terraform AWS Infrastructure** | **COMPLETE** | Modular Terraform IaC (`modules/vpc`, `modules/networking`, `modules/iam`, `modules/ecr`, `modules/eks`), root configuration, dev/prod environment overlays, ADR-004 cost mitigation, `terraform fmt -check`, `init`, and `validate` 100% verified. |
 | **Phase 7** | **Kubernetes Deployment & HPA** | PLANNED | Deployments, Services, Ingress, readiness/liveness probes, and Horizontal Pod Autoscaling. |
 | **Phase 8** | **GitHub Actions CI/CD** | PLANNED | Automated testing, Docker image building, immutable tagging, and ECR publishing. |
 | **Phase 9** | **Argo CD GitOps Engine** | PLANNED | Declarative GitOps synchronization and automated cluster state reconciliation. |
@@ -212,9 +214,65 @@ The platform control plane now features unified local execution via Docker Compo
 
 ---
 
-## 7. Cloud Verification Notice
+---
+
+## 7. Phase 6 Deliverables & Verification Inventory
+
+### Delivered Components:
+1. **Terraform Modular Architecture (`terraform/modules/`):**
+   - **`modules/vpc/`:**
+     - `main.tf`, `variables.tf`, `outputs.tf`.
+     - VPC CIDR `10.0.0.0/16`, DNS hostnames and DNS support enabled.
+     - 6 Subnets across 2 Availability Zones (`us-east-1a`, `us-east-1b`):
+       - 2 Public Subnets: `10.0.1.0/24`, `10.0.2.0/24` (tagged `kubernetes.io/role/elb = "1"`).
+       - 2 Private Subnets: `10.0.10.0/24`, `10.0.20.0/24` (tagged `kubernetes.io/role/internal-elb = "1"`).
+       - 2 Isolated Subnets: `10.0.100.0/24`, `10.0.200.0/24` (database tier with zero route to internet).
+     - Internet Gateway, Elastic IP, and NAT Gateway supporting single NAT gateway cost-reduction mode (ADR-004).
+     - Route tables and associations for public, private, and isolated subnets.
+   - **`modules/networking/`:**
+     - `main.tf`, `variables.tf`, `outputs.tf`.
+     - Security groups for Application Load Balancer (ports 80/443), EKS cluster control plane (port 443), EKS worker nodes (node-to-node, kubelet 10250, cluster 443, ALB ingress), and isolated PostgreSQL database (port 5432 ingress restricted strictly to worker node security group).
+   - **`modules/iam/`:**
+     - `main.tf`, `variables.tf`, `outputs.tf`.
+     - `AmazonEKSClusterPolicy` and `AmazonEKSVPCResourceController` for control plane role.
+     - `AmazonEKSWorkerNodePolicy`, `AmazonEKS_CNI_Policy`, and `AmazonEC2ContainerRegistryReadOnly` for worker node group role.
+     - GitHub Actions CI/CD role template with OIDC federation and ECR push/pull permissions.
+   - **`modules/ecr/`:**
+     - `main.tf`, `variables.tf`, `outputs.tf`.
+     - Repositories for `forgecloud-apps` and `sample-backend-service`.
+     - `scan_on_push = true` vulnerability scanning configuration.
+     - Lifecycle policies pruning untagged images after 14 days and retaining the latest 30 tagged releases.
+   - **`modules/eks/`:**
+     - `main.tf`, `variables.tf`, `outputs.tf`.
+     - Amazon EKS cluster (`v1.30`) with control plane logging (`api`, `audit`, `authenticator`, `controllerManager`, `scheduler`).
+     - Managed node group with `t3.medium` instances (desired: 2, min: 1, max: 4) deployed exclusively in private subnets.
+     - IAM OIDC provider configuration for Kubernetes ServiceAccounts (IRSA).
+
+2. **Root Configuration (`terraform/`):**
+   - `providers.tf`: Terraform `required_version >= 1.5.0`, `hashicorp/aws ~> 5.0`, `hashicorp/tls ~> 4.0`.
+   - `variables.tf`: Fully parameterized configuration with clean defaults and zero hard-coded secrets.
+   - `main.tf`: Coordinates the 5 infrastructure modules.
+   - `outputs.tf`: Comprehensive outputs exposing VPC, subnets, NAT IPs, security groups, IAM roles, ECR URLs, and EKS endpoints.
+   - `terraform.tfvars.example`: Example development configuration.
+
+3. **Environment Overlays (`terraform/environments/`):**
+   - `environments/dev/`: `providers.tf`, `variables.tf`, `main.tf`, `outputs.tf`, `terraform.tfvars.example` (single NAT gateway, `t3.medium`, minimal node count).
+   - `environments/prod/`: `providers.tf`, `variables.tf`, `main.tf`, `outputs.tf`, `terraform.tfvars.example` (multi-AZ NAT gateways, `t3.large`, HA node scaling).
+
+### Verification Performed:
+- **Terraform Formatting Check:** `terraform fmt -check -recursive` executed via `hashicorp/terraform:latest` container (100% compliant, 0 formatting errors).
+- **Terraform Root Module Validation:** `terraform init -backend=false` and `terraform validate` succeeded (`Success! The configuration is valid.`).
+- **Dev Environment Overlay Validation:** `terraform init -backend=false` and `terraform validate` succeeded (`Success! The configuration is valid.`).
+- **Prod Environment Overlay Validation:** `terraform init -backend=false` and `terraform validate` succeeded (`Success! The configuration is valid.`).
+- **Host Backend Regression Test Suite:** 60/60 tests passing (100% success rate, 0 regressions across Phase 1-5).
+- **Host Frontend Production Build:** Vite production build 100% successful (`✓ 1653 modules transformed`, 0 errors).
+- **Strict Boundary Control:** Verified that no Kubernetes application manifests, Helm charts, CI/CD workflows, Argo CD manifests, or observability configs were created (zero Phase 7+ work).
+
+---
+
+## 8. Cloud Verification Notice
 
 Per Project Rule 10:
 > **`NOT VERIFIED — REQUIRES AWS ENVIRONMENT`**
 
-No AWS resources have been provisioned in Phase 5. Live cloud operations will remain in this unverified state until executed against an active, authenticated AWS account in Phase 6 and beyond.
+In accordance with project guardrails, no real AWS account was configured, no AWS credentials were authenticated, and neither `terraform apply` nor `terraform destroy` was executed. All live cloud operations will remain strictly classified as `NOT VERIFIED — REQUIRES AWS ENVIRONMENT` until an active AWS environment is configured for deployment.

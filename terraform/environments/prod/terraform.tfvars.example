@@ -1,0 +1,11 @@
+aws_region         = "us-east-1"
+project_name       = "forgecloud"
+eks_instance_types = ["t3.large"]
+eks_desired_size   = 3
+eks_min_size       = 2
+eks_max_size       = 6
+
+tags = {
+  Environment = "prod"
+  CostCenter  = "Engineering-Prod"
+}
