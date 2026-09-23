@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.config import settings
 from backend.app.routers.auth import router as auth_router
 from backend.app.routers.users import router as users_router
+from backend.app.routers.applications import router as applications_router
 
 app = FastAPI(
     title="ForgeCloud Control Plane",
@@ -31,6 +32,8 @@ app.add_middleware(
 # Include Routers
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(users_router, prefix="/api/users")
+app.include_router(applications_router, prefix="/api/applications")
+
 
 
 @app.get(

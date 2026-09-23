@@ -1,0 +1,86 @@
+@import './tokens.css';
+
+:root {
+  /* ==========================================================================
+     Backward Compatibility Aliases:
+     Maps legacy ForgeCloud variables to new Design System Tokens
+     ========================================================================== */
+
+  /* Colors - Base Backgrounds */
+  --bg-primary: var(--fc-bg-page);
+  --bg-secondary: var(--fc-bg-surface);
+  --bg-tertiary: var(--fc-bg-subtle);
+  --bg-card: var(--fc-bg-surface);
+  --bg-card-hover: var(--fc-bg-surface-hover);
+  --bg-glass: var(--fc-bg-glass);
+  --bg-input: var(--fc-bg-input);
+
+  /* Borders */
+  --border-subtle: var(--fc-border-subtle);
+  --border-medium: var(--fc-border-medium);
+  --border-hover: var(--fc-border-strong);
+  --border-active: var(--fc-border-focus);
+
+  /* Typography */
+  --font-sans: var(--fc-font-sans);
+  --font-mono: var(--fc-font-mono);
+
+  /* Text Colors */
+  --text-primary: var(--fc-text-primary);
+  --text-secondary: var(--fc-text-secondary);
+  --text-muted: var(--fc-text-muted);
+  --text-inverse: var(--fc-text-inverse);
+
+  /* Brand Accents */
+  --accent-cyan: var(--fc-primary);
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --gradient-brand: linear-gradient(135deg, var(--fc-primary) 0%, #3b82f6 100%);
+  --gradient-accent: linear-gradient(135deg, var(--fc-primary) 0%, #0284c7 100%);
+  --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+
+  /* Status Colors */
+  --color-success: var(--fc-status-success);
+  --bg-success: var(--fc-status-success-bg);
+  --border-success: var(--fc-status-success-border);
+
+  --color-warning: var(--fc-status-warning);
+  --bg-warning: var(--fc-status-warning-bg);
+  --border-warning: var(--fc-status-warning-border);
+
+  --color-danger: var(--fc-status-danger);
+  --bg-danger: var(--fc-status-danger-bg);
+  --border-danger: var(--fc-status-danger-border);
+
+  --color-info: var(--fc-status-info);
+  --bg-info: var(--fc-status-info-bg);
+  --border-info: var(--fc-status-info-border);
+
+  --color-rollback: var(--fc-status-orange);
+  --bg-rollback: var(--fc-status-orange-bg);
+  --border-rollback: var(--fc-status-orange-border);
+
+  /* Shadows and Effects */
+  --backdrop-blur: blur(8px);
+  --shadow-sm: var(--fc-shadow-sm);
+  --shadow-md: var(--fc-shadow-card);
+  --shadow-lg: var(--fc-shadow-elevated);
+  --shadow-glow: var(--fc-primary-glow);
+  --shadow-glow-danger: 0 0 16px rgba(239, 68, 68, 0.2);
+
+  /* Layout Dimensions */
+  --sidebar-width: var(--fc-sidebar-width);
+  --sidebar-collapsed-width: var(--fc-sidebar-collapsed-width);
+  --header-height: var(--fc-header-height);
+
+  /* Border Radii */
+  --radius-xs: var(--fc-radius-xs);
+  --radius-sm: var(--fc-radius-sm);
+  --radius-md: var(--fc-radius-md);
+  --radius-lg: var(--fc-radius-lg);
+  --radius-full: var(--fc-radius-full);
+
+  /* Transitions */
+  --transition-fast: var(--fc-transition-fast);
+  --transition-base: var(--fc-transition-base);
+}

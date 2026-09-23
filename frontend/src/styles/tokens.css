@@ -1,0 +1,185 @@
+/* ==========================================================================
+   ForgeCloud Design System Tokens
+   Linear + Vercel + Stripe Inspired Design Tokens
+   Supports: Dark Mode (Default) & Light Mode
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     Primary ForgeCloud Brand Accent
+     ------------------------------------------------------------------------ */
+  --fc-primary: #00d2ff;
+  --fc-primary-hover: #38bdf8;
+  --fc-primary-active: #0284c7;
+  --fc-primary-subtle: rgba(0, 210, 255, 0.12);
+  --fc-primary-border: rgba(0, 210, 255, 0.28);
+  --fc-primary-text: #090d16;
+  --fc-primary-glow: 0 0 16px rgba(0, 210, 255, 0.25);
+
+  /* ------------------------------------------------------------------------
+     Semantic Status Colors (WCAG AA Contrast in Dark & Light)
+     ------------------------------------------------------------------------ */
+  /* RUNNING / HEALTHY */
+  --fc-status-success: #10b981;
+  --fc-status-success-bg: rgba(16, 185, 129, 0.12);
+  --fc-status-success-border: rgba(16, 185, 129, 0.28);
+  --fc-status-success-text: #34d399;
+
+  /* DEPLOYING / BUILDING / PENDING */
+  --fc-status-warning: #f59e0b;
+  --fc-status-warning-bg: rgba(245, 158, 11, 0.12);
+  --fc-status-warning-border: rgba(245, 158, 11, 0.28);
+  --fc-status-warning-text: #fbbf24;
+
+  /* FAILED / ERROR / DANGER */
+  --fc-status-danger: #ef4444;
+  --fc-status-danger-bg: rgba(239, 68, 68, 0.12);
+  --fc-status-danger-border: rgba(239, 68, 68, 0.28);
+  --fc-status-danger-text: #f87171;
+
+  /* ROLLED_BACK */
+  --fc-status-orange: #f97316;
+  --fc-status-orange-bg: rgba(249, 115, 22, 0.12);
+  --fc-status-orange-border: rgba(249, 115, 22, 0.28);
+  --fc-status-orange-text: #fb923c;
+
+  /* INFO */
+  --fc-status-info: #0ea5e9;
+  --fc-status-info-bg: rgba(14, 165, 233, 0.12);
+  --fc-status-info-border: rgba(14, 165, 233, 0.28);
+  --fc-status-info-text: #38bdf8;
+
+  /* NEUTRAL / CONFIGURED */
+  --fc-status-neutral: #94a3b8;
+  --fc-status-neutral-bg: rgba(148, 163, 184, 0.12);
+  --fc-status-neutral-border: rgba(148, 163, 184, 0.28);
+  --fc-status-neutral-text: #cbd5e1;
+
+  /* ------------------------------------------------------------------------
+     Typography
+     ------------------------------------------------------------------------ */
+  --fc-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --fc-font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+
+  /* Strict 6-Tier Hierarchy */
+  --fc-font-size-display: 1.5rem;   /* 24px */
+  --fc-font-size-h2: 1.25rem;       /* 20px */
+  --fc-font-size-h3: 1.0rem;        /* 16px */
+  --fc-font-size-body: 0.875rem;     /* 14px */
+  --fc-font-size-small: 0.8125rem;  /* 13px */
+  --fc-font-size-caption: 0.75rem;  /* 12px */
+
+  --fc-font-weight-regular: 400;
+  --fc-font-weight-medium: 500;
+  --fc-font-weight-semibold: 600;
+  --fc-font-weight-bold: 700;
+
+  --fc-line-height-tight: 1.25;
+  --fc-line-height-normal: 1.5;
+
+  /* ------------------------------------------------------------------------
+     4px Base Spacing Grid
+     ------------------------------------------------------------------------ */
+  --fc-space-1: 4px;
+  --fc-space-2: 8px;
+  --fc-space-3: 12px;
+  --fc-space-4: 16px;
+  --fc-space-5: 20px;
+  --fc-space-6: 24px;
+  --fc-space-8: 32px;
+  --fc-space-10: 40px;
+  --fc-space-12: 48px;
+  --fc-space-16: 64px;
+
+  /* ------------------------------------------------------------------------
+     Border Radii
+     ------------------------------------------------------------------------ */
+  --fc-radius-xs: 4px;
+  --fc-radius-sm: 6px;
+  --fc-radius-md: 10px;
+  --fc-radius-lg: 14px;
+  --fc-radius-full: 9999px;
+
+  /* ------------------------------------------------------------------------
+     Layout Dimensions
+     ------------------------------------------------------------------------ */
+  --fc-sidebar-width: 256px;
+  --fc-sidebar-collapsed-width: 68px;
+  --fc-header-height: 60px;
+
+  /* ------------------------------------------------------------------------
+     Transitions
+     ------------------------------------------------------------------------ */
+  --fc-transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --fc-transition-base: 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ==========================================================================
+   Dark Theme (Default)
+   ========================================================================== */
+:root, [data-theme="dark"] {
+  --fc-bg-page: #090d16;
+  --fc-bg-surface: #0f172a;
+  --fc-bg-surface-hover: #141f36;
+  --fc-bg-elevated: #162036;
+  --fc-bg-elevated-hover: #1c2a46;
+  --fc-bg-subtle: #1e293b;
+  --fc-bg-input: #0b111e;
+  --fc-bg-glass: rgba(15, 23, 42, 0.85);
+
+  --fc-border-subtle: rgba(255, 255, 255, 0.08);
+  --fc-border-medium: rgba(255, 255, 255, 0.16);
+  --fc-border-strong: rgba(255, 255, 255, 0.28);
+  --fc-border-focus: var(--fc-primary);
+
+  --fc-text-primary: #f8fafc;
+  --fc-text-secondary: #94a3b8;
+  --fc-text-muted: #64748b;
+  --fc-text-inverse: #090d16;
+
+  --fc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --fc-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--fc-border-subtle);
+  --fc-shadow-elevated: 0 10px 25px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--fc-border-medium);
+  --fc-shadow-modal: 0 20px 45px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--fc-border-medium);
+
+  --fc-backdrop-overlay: rgba(5, 8, 14, 0.75);
+}
+
+/* ==========================================================================
+   Light Theme
+   ========================================================================== */
+[data-theme="light"] {
+  --fc-bg-page: #f8fafc;
+  --fc-bg-surface: #ffffff;
+  --fc-bg-surface-hover: #f1f5f9;
+  --fc-bg-elevated: #ffffff;
+  --fc-bg-elevated-hover: #f8fafc;
+  --fc-bg-subtle: #f1f5f9;
+  --fc-bg-input: #ffffff;
+  --fc-bg-glass: rgba(255, 255, 255, 0.88);
+
+  --fc-border-subtle: rgba(0, 0, 0, 0.08);
+  --fc-border-medium: rgba(0, 0, 0, 0.16);
+  --fc-border-strong: rgba(0, 0, 0, 0.28);
+  --fc-border-focus: #0284c7;
+
+  --fc-text-primary: #0f172a;
+  --fc-text-secondary: #475569;
+  --fc-text-muted: #64748b;
+  --fc-text-inverse: #ffffff;
+
+  --fc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --fc-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--fc-border-subtle);
+  --fc-shadow-elevated: 0 8px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--fc-border-medium);
+  --fc-shadow-modal: 0 20px 35px rgba(0, 0, 0, 0.16), 0 0 0 1px var(--fc-border-medium);
+
+  --fc-backdrop-overlay: rgba(15, 23, 42, 0.45);
+
+  /* Status text adjustments for light mode contrast */
+  --fc-status-success-text: #065f46;
+  --fc-status-warning-text: #92400e;
+  --fc-status-danger-text: #991b1b;
+  --fc-status-orange-text: #9a3412;
+  --fc-status-info-text: #0369a1;
+  --fc-status-neutral-text: #334155;
+}
