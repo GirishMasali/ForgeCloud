@@ -15,6 +15,7 @@
 *.pfx
 *.p12
 secrets/
+!kubernetes/secrets/
 *.secret
 
 # --- Python & Backend Artifacts ---

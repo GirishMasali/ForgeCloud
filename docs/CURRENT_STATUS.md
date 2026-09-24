@@ -1,19 +1,19 @@
 # ForgeCloud Current Project Status
 
 **Project:** ForgeCloud — Self-Service Cloud-Native Internal Developer Platform  
-**Current Date:** 2026-09-23  
-**Current State:** Phase 1 through Phase 6 Complete (Terraform AWS Infrastructure Verified)
-**Next Phase:** Phase 7: Kubernetes Deployment & HPA
+**Current Date:** 2026-09-24  
+**Current State:** Phase 1 through Phase 7 Complete (Kubernetes Deployment Layer Verified)
+**Next Phase:** Phase 8: GitHub Actions CI/CD
 
 ---
 
 ## 1. Executive Summary
 
-Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), Phase 5 (Docker Local Workflow), and Phase 6 (Terraform AWS Infrastructure) are complete and verified.
+Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), Phase 5 (Docker Local Workflow), Phase 6 (Terraform AWS Infrastructure), and Phase 7 (Kubernetes Deployment & HPA) are complete and verified.
 
-The platform infrastructure layer is now fully codified in Terraform (AWS provider `~> 5.0`, `required_version >= 1.5.0`) with a clean, reusable modular architecture covering VPC networking (6 subnets across 2 AZs: public, private, and isolated database tier), security groups (ALB, EKS control plane, worker nodes, and isolated PostgreSQL), IAM roles/policies (EKS cluster, managed worker node group, and GitHub Actions OIDC federation), Amazon ECR container repositories (`forgecloud-apps`, `sample-backend-service` with automated image scanning and lifecycle pruning), and Amazon EKS managed Kubernetes cluster (`v1.30` control plane, managed node groups with `t3.medium` instances, and OIDC IRSA integration).
+The platform infrastructure layer is codified in Terraform, and the Kubernetes runtime layer is codified in declarative manifests across `forgecloud-system` and `forgecloud-apps` namespaces. The workloads (`backend`, `frontend`, and `sample-backend-service`) feature dedicated Deployments (2 replicas, rolling updates `maxSurge: 1`, `maxUnavailable: 0`), least-privilege ServiceAccounts (`automountServiceAccountToken: false`), container port mappings, container health probes (`/api/health`, `/healthz`, `/health`), strict CPU/memory requests and limits (`t3.medium` compatible), ClusterIP Services with exact selector matching, AWS ALB Ingress configurations, and Horizontal Pod Autoscalers targeting 70% CPU utilization across 2–6 replicas.
 
-Cost-conscious infrastructure design (ADR-004) enables a single NAT Gateway in development (`single_nat_gateway = true`), reducing standing cloud networking costs by 50%. Complete environment overlays (`environments/dev` and `environments/prod`) provide environment-specific sizing. Local static analysis (`terraform fmt`, `terraform init`, and `terraform validate`) confirmed 100% syntactic and structural validity across root and environment configurations without any live cloud credentials or destructive commands. Full regression testing confirmed zero regressions across Phase 1-5 functionality (60/60 backend tests pass; frontend build 100% successful).
+A comprehensive automated validator (`kubernetes/validate_k8s.py`) confirmed 100% syntactic and structural validity across all 18 manifests without live cloud credentials. Full regression testing confirmed zero regressions across Phase 1-5 functionality (60/60 backend tests pass; frontend production build 100% successful).
 
 ---
 
@@ -27,7 +27,7 @@ Cost-conscious infrastructure design (ADR-004) enables a single NAT Gateway in d
 | **Phase 4** | **Application Management & Dashboard** | **COMPLETE** | Application CRUD endpoints (`/api/applications`), Pydantic validation schemas, domain service layer, RBAC enforcement, React 18 frontend with Vanilla CSS design tokens, 13 route views, centralized Axios client, and 23 automated tests (60 total backend tests passing; frontend build 100% successful). |
 | **Phase 5** | **Docker Local Workflow** | **COMPLETE** | Production-ready multi-stage Dockerfiles (`backend`, `frontend`, `sample-app`), root `docker-compose.yml`, PostgreSQL 15 volume persistence, bridge networking, live container Alembic migration execution, and full API/RBAC verification completed. |
 | **Phase 6** | **Terraform AWS Infrastructure** | **COMPLETE** | Modular Terraform IaC (`modules/vpc`, `modules/networking`, `modules/iam`, `modules/ecr`, `modules/eks`), root configuration, dev/prod environment overlays, ADR-004 cost mitigation, `terraform fmt -check`, `init`, and `validate` 100% verified. |
-| **Phase 7** | **Kubernetes Deployment & HPA** | PLANNED | Deployments, Services, Ingress, readiness/liveness probes, and Horizontal Pod Autoscaling. |
+| **Phase 7** | **Kubernetes Deployment & HPA** | **COMPLETE** | 18 declarative K8s manifests (Deployments, Services, Ingress, ConfigMaps, Secrets, ServiceAccounts, HPA), rolling updates, probes, requests/limits, and 100% static/structural validation verified. Live AWS/EKS marked NOT VERIFIED. |
 | **Phase 8** | **GitHub Actions CI/CD** | PLANNED | Automated testing, Docker image building, immutable tagging, and ECR publishing. |
 | **Phase 9** | **Argo CD GitOps Engine** | PLANNED | Declarative GitOps synchronization and automated cluster state reconciliation. |
 | **Phase 10** | **Observability Integration** | PLANNED | Prometheus metrics scraping, Grafana dashboards, OpenTelemetry tracing, and CloudWatch logs. |
@@ -270,7 +270,45 @@ Cost-conscious infrastructure design (ADR-004) enables a single NAT Gateway in d
 
 ---
 
-## 8. Cloud Verification Notice
+## 8. Phase 7 Deliverables & Verification Inventory
+
+### Delivered Components:
+1. **Namespaces (`kubernetes/namespaces/`):**
+   - `01-forgecloud-system-namespace.yaml`: Platform control plane namespace (`forgecloud-system`).
+   - `02-forgecloud-apps-namespace.yaml`: User applications namespace (`forgecloud-apps`).
+2. **Configuration & Secrets (`kubernetes/config/`, `kubernetes/secrets/`):**
+   - `backend-configmap.yaml`: Non-sensitive platform environment configuration (`ENVIRONMENT`, `LOG_LEVEL`, `CORS_ORIGINS`, `POSTGRES_HOST`, `EKS_CLUSTER_NAME`, etc.).
+   - `sample-app-configmap.yaml`: Microservice non-sensitive configuration (`SERVICE_NAME`, `SERVICE_VERSION`, `ENVIRONMENT`).
+   - `backend-secret.yaml`: Safe Secret placeholder template without real credentials (database credentials and JWT secret key).
+3. **ServiceAccounts (`kubernetes/serviceaccounts/`):**
+   - `backend-sa`, `frontend-sa`, `sample-app-sa`: Minimal ServiceAccounts with `automountServiceAccountToken: false` enforcing least privilege (zero unnecessary ClusterRoles/ClusterRoleBindings).
+4. **Deployments (`kubernetes/deployments/`):**
+   - `backend-deployment.yaml`: FastAPI control plane Deployment (port 8000, 2 replicas, rolling updates `maxSurge: 1`, `maxUnavailable: 0`, readiness/liveness probes on `/api/health:8000`, requests 100m/128Mi, limits 500m/512Mi, security context non-root UID 10001).
+   - `frontend-deployment.yaml`: React Nginx SPA Deployment (port 80, 2 replicas, rolling updates `maxSurge: 1`, `maxUnavailable: 0`, readiness/liveness probes on `/healthz:80`, requests 50m/64Mi, limits 200m/256Mi).
+   - `sample-app-deployment.yaml`: Sample microservice Deployment (port 8080, 2 replicas, rolling updates `maxSurge: 1`, `maxUnavailable: 0`, readiness/liveness probes on `/health:8080`, requests 100m/128Mi, limits 500m/512Mi, security context non-root UID 10001).
+5. **Services (`kubernetes/services/`):**
+   - `backend-service.yaml`: ClusterIP Service exposing port 8000 with exact selector match (`app.kubernetes.io/name: backend`).
+   - `frontend-service.yaml`: ClusterIP Service exposing port 80 with exact selector match (`app.kubernetes.io/name: frontend`).
+   - `sample-app-service.yaml`: ClusterIP Service exposing port 8080 with exact selector match (`app.kubernetes.io/name: sample-backend-service`).
+6. **Ingress (`kubernetes/ingress/`):**
+   - `platform-ingress.yaml`: Ingress in `forgecloud-system` routing `/api` to `backend:8000` and `/` to `frontend:80` with AWS ALB annotations.
+   - `sample-app-ingress.yaml`: Ingress in `forgecloud-apps` routing `/` to `sample-backend-service:8080` with AWS ALB annotations.
+7. **Autoscaling (`kubernetes/autoscaling/`):**
+   - `backend-hpa.yaml`: HorizontalPodAutoscaler (`autoscaling/v2`) targeting `backend` Deployment (min: 2, max: 6, average CPU utilization: 70%).
+   - `sample-app-hpa.yaml`: HorizontalPodAutoscaler (`autoscaling/v2`) targeting `sample-backend-service` Deployment (min: 2, max: 6, average CPU utilization: 70%).
+8. **Documentation & Validation Tooling (`kubernetes/`):**
+   - `kubernetes/README.md`: Complete architecture documentation, workload mappings, health probes, resource requests/limits, and HPA configuration.
+   - `kubernetes/validate_k8s.py`: Automated static and structural validator verifying YAML syntax, schema structures, label selectors, container ports, probes, resources, HPA, and secret safety across all 18 manifests.
+
+### Verification Performed:
+- **Manifest Static & Structural Validation:** 18/18 manifests passed all checks (100% success rate via `kubernetes/validate_k8s.py`).
+- **Host Backend Regression Test Suite:** 60/60 tests passing (100% success rate, 0 regressions across Phase 1-5).
+- **Host Frontend Production Build:** Vite production build 100% successful (`✓ 1653 modules transformed`, 0 errors).
+- **Strict Boundary Control:** Verified that no GitHub Actions workflows, Argo CD manifests, or observability integrations were created (zero Phase 8+ work).
+
+---
+
+## 9. Cloud Verification Notice
 
 Per Project Rule 10:
 > **`NOT VERIFIED — REQUIRES AWS ENVIRONMENT`**

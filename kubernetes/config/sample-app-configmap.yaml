@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample-app-config
+  namespace: forgecloud-apps
+  labels:
+    app.kubernetes.io/name: sample-app-config
+    app.kubernetes.io/part-of: forgecloud-apps
+    app.kubernetes.io/component: sample-app
+data:
+  SERVICE_NAME: "sample-backend-service"
+  SERVICE_VERSION: "v1.0.0"
+  ENVIRONMENT: "dev"

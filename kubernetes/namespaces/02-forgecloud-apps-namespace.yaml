@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: forgecloud-apps
+  labels:
+    app.kubernetes.io/name: forgecloud-apps
+    app.kubernetes.io/part-of: forgecloud
+    app.kubernetes.io/managed-by: declarative-manifests

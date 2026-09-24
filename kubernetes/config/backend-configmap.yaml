@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: forgecloud-system
+  labels:
+    app.kubernetes.io/name: backend-config
+    app.kubernetes.io/part-of: forgecloud
+    app.kubernetes.io/component: control-plane
+data:
+  ENVIRONMENT: "dev"
+  LOG_LEVEL: "info"
+  FORGECLOUD_LOCAL_MODE: "false"
+  BACKEND_PORT: "8000"
+  POSTGRES_HOST: "postgres.forgecloud-system.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "forgecloud_db"
+  POSTGRES_USER: "forgecloud_user"
+  JWT_ALGORITHM: "HS256"
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+  CORS_ORIGINS: '["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost", "http://frontend", "http://backend:8000"]'
+  AWS_REGION: "us-east-1"
+  ECR_REPOSITORY_NAME: "forgecloud-apps"
+  EKS_CLUSTER_NAME: "forgecloud-dev-eks"
+  PROMETHEUS_METRICS_PATH: "/metrics"
+  OTEL_SERVICE_NAME: "forgecloud-control-plane"
