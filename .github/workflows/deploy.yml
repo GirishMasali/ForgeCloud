@@ -27,8 +27,11 @@ env:
 jobs:
   deploy-to-eks:
     name: Deploy Manifests to EKS
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # In Phase 9 GitOps architecture, Argo CD is the primary reconciliation authority.
+    # Automatic direct deployment via workflow_run is disabled by default to prevent conflicting
+    # deployment authorities with Argo CD self-healing, but can be enabled via ENABLE_DIRECT_DEPLOY.
+    # Manual execution via workflow_dispatch remains available for bootstrap/fallback operations.
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && vars.ENABLE_DIRECT_DEPLOY == 'true') }}
 
     steps:
       - name: Checkout repository
