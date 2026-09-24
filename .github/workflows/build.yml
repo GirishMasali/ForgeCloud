@@ -1,0 +1,109 @@
+name: Build & Package Container Images
+
+on:
+  workflow_run:
+    workflows: ["Test & Validate"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Custom image tag (leave blank to use Git commit SHA)"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  ECR_FORGECLOUD_APPS_REPO: ${{ vars.ECR_FORGECLOUD_APPS_REPO || 'forgecloud-apps' }}
+  ECR_SAMPLE_APP_REPO: ${{ vars.ECR_SAMPLE_APP_REPO || 'sample-backend-service' }}
+
+jobs:
+  build-and-push:
+    name: Build & Push ECR Images
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Determine Release Image Tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.image_tag }}" ]; then
+            RELEASE_TAG="${{ inputs.image_tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            RELEASE_TAG="${{ github.event.workflow_run.head_sha }}"
+          else
+            RELEASE_TAG="${{ github.sha }}"
+          fi
+          echo "IMAGE_TAG=${RELEASE_TAG}" >> $GITHUB_ENV
+          echo "Release tag resolved to: ${RELEASE_TAG}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- 1. Hermetic Local Container Builds (Phase 5 Dockerfiles) ---
+      - name: Build Backend Container Image
+        run: docker build --file backend/Dockerfile --tag backend:local .
+
+      - name: Build Frontend Container Image
+        run: docker build --file frontend/Dockerfile --tag frontend:local .
+
+      - name: Build Sample Application Container Image
+        run: docker build --file sample-app/Dockerfile --tag sample-app:local .
+
+      # --- 2. AWS Authentication via GitHub OIDC ---
+      - name: Configure AWS Credentials via GitHub OIDC
+        id: aws-auth
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN || vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # --- 3. Tag and Push Immutable Images to Amazon ECR ---
+      - name: Tag and Push Backend Image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          ECR_IMAGE="${REGISTRY}/${ECR_FORGECLOUD_APPS_REPO}"
+          docker tag backend:local "${ECR_IMAGE}:backend-${IMAGE_TAG}"
+          docker tag backend:local "${ECR_IMAGE}:backend-latest"
+          docker push "${ECR_IMAGE}:backend-${IMAGE_TAG}"
+          docker push "${ECR_IMAGE}:backend-latest"
+          echo "Successfully published: ${ECR_IMAGE}:backend-${IMAGE_TAG}"
+
+      - name: Tag and Push Frontend Image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          ECR_IMAGE="${REGISTRY}/${ECR_FORGECLOUD_APPS_REPO}"
+          docker tag frontend:local "${ECR_IMAGE}:frontend-${IMAGE_TAG}"
+          docker tag frontend:local "${ECR_IMAGE}:frontend-latest"
+          docker push "${ECR_IMAGE}:frontend-${IMAGE_TAG}"
+          docker push "${ECR_IMAGE}:frontend-latest"
+          echo "Successfully published: ${ECR_IMAGE}:frontend-${IMAGE_TAG}"
+
+      - name: Tag and Push Sample Application Image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          ECR_IMAGE="${REGISTRY}/${ECR_SAMPLE_APP_REPO}"
+          docker tag sample-app:local "${ECR_IMAGE}:${IMAGE_TAG}"
+          docker tag sample-app:local "${ECR_IMAGE}:latest"
+          docker push "${ECR_IMAGE}:${IMAGE_TAG}"
+          docker push "${ECR_IMAGE}:latest"
+          echo "Successfully published: ${ECR_IMAGE}:${IMAGE_TAG}"

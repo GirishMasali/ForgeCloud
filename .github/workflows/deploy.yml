@@ -1,0 +1,123 @@
+name: Deploy to Amazon EKS
+
+on:
+  workflow_run:
+    workflows: ["Build & Package Container Images"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (leave blank to use Git commit SHA)"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'forgecloud-dev-cluster' }}
+  ECR_FORGECLOUD_APPS_REPO: ${{ vars.ECR_FORGECLOUD_APPS_REPO || 'forgecloud-apps' }}
+  ECR_SAMPLE_APP_REPO: ${{ vars.ECR_SAMPLE_APP_REPO || 'sample-backend-service' }}
+
+jobs:
+  deploy-to-eks:
+    name: Deploy Manifests to EKS
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Determine Deployment Image Tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.image_tag }}" ]; then
+            DEPLOY_TAG="${{ inputs.image_tag }}"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            DEPLOY_TAG="${{ github.event.workflow_run.head_sha }}"
+          else
+            DEPLOY_TAG="${{ github.sha }}"
+          fi
+          echo "IMAGE_TAG=${DEPLOY_TAG}" >> $GITHUB_ENV
+          echo "Deployment image tag resolved to: ${DEPLOY_TAG}"
+
+      # --- 1. Client-side Manifest Validation ---
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.0"
+
+      - name: Client-side Dry Run Manifest Validation
+        run: |
+          kubectl apply --dry-run=client -R -f kubernetes/
+
+      # --- 2. AWS Authentication via GitHub OIDC ---
+      - name: Configure AWS Credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN || vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig for Amazon EKS
+        run: aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+
+      # --- 3. Apply Declarative Kubernetes Manifests ---
+      - name: Apply Namespaces
+        run: |
+          kubectl apply -f kubernetes/namespaces/
+
+      - name: Apply ConfigMaps & ServiceAccounts
+        run: |
+          kubectl apply -f kubernetes/config/
+          kubectl apply -f kubernetes/serviceaccounts/
+
+      - name: Apply Services, Ingress & Autoscaling
+        run: |
+          kubectl apply -f kubernetes/services/
+          kubectl apply -f kubernetes/ingress/
+          kubectl apply -f kubernetes/autoscaling/
+
+      # --- 4. Deploy Workloads with Immutable Image Tags ---
+      - name: Deploy Workloads & Update Image References
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # Apply base deployment manifests
+          kubectl apply -f kubernetes/deployments/
+
+          # Update container images to immutable commit SHA tag
+          BACKEND_IMAGE="${REGISTRY}/${ECR_FORGECLOUD_APPS_REPO}:backend-${IMAGE_TAG}"
+          FRONTEND_IMAGE="${REGISTRY}/${ECR_FORGECLOUD_APPS_REPO}:frontend-${IMAGE_TAG}"
+          SAMPLE_APP_IMAGE="${REGISTRY}/${ECR_SAMPLE_APP_REPO}:${IMAGE_TAG}"
+
+          echo "Updating backend deployment image to: ${BACKEND_IMAGE}"
+          kubectl set image deployment/backend backend="${BACKEND_IMAGE}" -n forgecloud-system
+
+          echo "Updating frontend deployment image to: ${FRONTEND_IMAGE}"
+          kubectl set image deployment/frontend frontend="${FRONTEND_IMAGE}" -n forgecloud-system
+
+          echo "Updating sample-backend-service deployment image to: ${SAMPLE_APP_IMAGE}"
+          kubectl set image deployment/sample-backend-service sample-backend-service="${SAMPLE_APP_IMAGE}" -n forgecloud-apps
+
+      # --- 5. Verify Workload Rollout Status ---
+      - name: Verify Backend Rollout Status
+        run: kubectl rollout status deployment/backend -n forgecloud-system --timeout=180s
+
+      - name: Verify Frontend Rollout Status
+        run: kubectl rollout status deployment/frontend -n forgecloud-system --timeout=180s
+
+      - name: Verify Sample Application Rollout Status
+        run: kubectl rollout status deployment/sample-backend-service -n forgecloud-apps --timeout=180s

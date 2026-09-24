@@ -2,18 +2,18 @@
 
 **Project:** ForgeCloud — Self-Service Cloud-Native Internal Developer Platform  
 **Current Date:** 2026-09-24  
-**Current State:** Phase 1 through Phase 7 Complete (Kubernetes Deployment Layer Verified)
-**Next Phase:** Phase 8: GitHub Actions CI/CD
+**Current State:** Phase 1 through Phase 8 Complete (GitHub Actions CI/CD Verified)
+**Next Phase:** Phase 9: Argo CD GitOps Engine
 
 ---
 
 ## 1. Executive Summary
 
-Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), Phase 5 (Docker Local Workflow), Phase 6 (Terraform AWS Infrastructure), and Phase 7 (Kubernetes Deployment & HPA) are complete and verified.
+Phase 1 (Foundation Setup), Phase 2 (Database Schema & Migrations), Phase 3 (Authentication & RBAC), Phase 4 (Application Management & Dashboard), Phase 5 (Docker Local Workflow), Phase 6 (Terraform AWS Infrastructure), Phase 7 (Kubernetes Deployment & HPA), and Phase 8 (GitHub Actions CI/CD) are complete and verified.
 
-The platform infrastructure layer is codified in Terraform, and the Kubernetes runtime layer is codified in declarative manifests across `forgecloud-system` and `forgecloud-apps` namespaces. The workloads (`backend`, `frontend`, and `sample-backend-service`) feature dedicated Deployments (2 replicas, rolling updates `maxSurge: 1`, `maxUnavailable: 0`), least-privilege ServiceAccounts (`automountServiceAccountToken: false`), container port mappings, container health probes (`/api/health`, `/healthz`, `/health`), strict CPU/memory requests and limits (`t3.medium` compatible), ClusterIP Services with exact selector matching, AWS ALB Ingress configurations, and Horizontal Pod Autoscalers targeting 70% CPU utilization across 2–6 replicas.
+The platform CI/CD automation layer is implemented with three dedicated GitHub Actions workflows (`test.yml`, `build.yml`, `deploy.yml`) enforcing automated testing, hermetic container building, AWS OIDC authentication, Amazon ECR publishing with immutable Git commit SHA tagging, and declarative Kubernetes rollout to Amazon EKS via `kubectl`.
 
-A comprehensive automated validator (`kubernetes/validate_k8s.py`) confirmed 100% syntactic and structural validity across all 18 manifests without live cloud credentials. Full regression testing confirmed zero regressions across Phase 1-5 functionality (60/60 backend tests pass; frontend production build 100% successful).
+A comprehensive automated validator (`.github/validate_workflows.py`) confirmed 100% syntactic, structural, and reference validity across all workflows without live cloud credentials. Full regression testing confirmed zero regressions across Phase 1-7 functionality (60/60 backend tests pass; frontend production build 100% successful; 18/18 Kubernetes manifests pass validation).
 
 ---
 
@@ -28,7 +28,7 @@ A comprehensive automated validator (`kubernetes/validate_k8s.py`) confirmed 100
 | **Phase 5** | **Docker Local Workflow** | **COMPLETE** | Production-ready multi-stage Dockerfiles (`backend`, `frontend`, `sample-app`), root `docker-compose.yml`, PostgreSQL 15 volume persistence, bridge networking, live container Alembic migration execution, and full API/RBAC verification completed. |
 | **Phase 6** | **Terraform AWS Infrastructure** | **COMPLETE** | Modular Terraform IaC (`modules/vpc`, `modules/networking`, `modules/iam`, `modules/ecr`, `modules/eks`), root configuration, dev/prod environment overlays, ADR-004 cost mitigation, `terraform fmt -check`, `init`, and `validate` 100% verified. |
 | **Phase 7** | **Kubernetes Deployment & HPA** | **COMPLETE** | 18 declarative K8s manifests (Deployments, Services, Ingress, ConfigMaps, Secrets, ServiceAccounts, HPA), rolling updates, probes, requests/limits, and 100% static/structural validation verified. Live AWS/EKS marked NOT VERIFIED. |
-| **Phase 8** | **GitHub Actions CI/CD** | PLANNED | Automated testing, Docker image building, immutable tagging, and ECR publishing. |
+| **Phase 8** | **GitHub Actions CI/CD** | **COMPLETE** | Three GitHub Actions workflows (`test.yml`, `build.yml`, `deploy.yml`), AWS OIDC role assumption, ECR immutable SHA tagging, and Kubernetes deployment rollout verified. Live AWS execution marked NOT VERIFIED. |
 | **Phase 9** | **Argo CD GitOps Engine** | PLANNED | Declarative GitOps synchronization and automated cluster state reconciliation. |
 | **Phase 10** | **Observability Integration** | PLANNED | Prometheus metrics scraping, Grafana dashboards, OpenTelemetry tracing, and CloudWatch logs. |
 | **Phase 11** | **Autoscaling & Rollback Workflows** | PLANNED | Dynamic scaling under load and automated rollback of unhealthy deployment releases. |
@@ -308,9 +308,32 @@ A comprehensive automated validator (`kubernetes/validate_k8s.py`) confirmed 100
 
 ---
 
-## 9. Cloud Verification Notice
+## 9. Phase 8 Deliverables & Verification Inventory
+
+### Delivered Components:
+1. **GitHub Actions Workflows (`.github/workflows/`):**
+   - **`test.yml`:** Automated validation workflow triggered on `push` to `main`, `pull_request` to `main`, and `workflow_dispatch`. Executes Python 3.10 backend pytest suite (60 tests) and Node.js 22 Vite production build validation (`npm run build`). Enforces least-privilege permissions (`contents: read`).
+   - **`build.yml`:** Container packaging workflow triggered via `workflow_run` upon successful completion of `test.yml` on `main` (and `workflow_dispatch`). Builds local container images hermetically from Phase 5 Dockerfiles (`backend/Dockerfile`, `frontend/Dockerfile`, `sample-app/Dockerfile`), authenticates to AWS via GitHub OIDC (`role-to-assume`), logs in to Amazon ECR, tags with immutable Git commit SHA and `latest`, and pushes to ECR repositories (`forgecloud-apps` and `sample-backend-service`). Enforces permissions (`id-token: write`, `contents: read`).
+   - **`deploy.yml`:** Amazon EKS deployment workflow triggered via `workflow_run` upon successful completion of `build.yml` on `main` (and `workflow_dispatch`). Validates manifests with client-side dry run, authenticates via OIDC, updates EKS kubeconfig, applies Phase 7 declarative manifests, updates workload container images using `kubectl set image` with the immutable commit SHA tag, and monitors rollout status via `kubectl rollout status` with a 180s timeout. Enforces permissions (`id-token: write`, `contents: read`).
+2. **Automated Static & Structural Validator (`.github/validate_workflows.py`):**
+   - Validates YAML syntax, trigger configurations, workflow dependencies, OIDC permissions, workload-to-ECR repository consistency, Kubernetes container name alignment, referenced file existence, and secret safety across all 3 workflows.
+3. **CI/CD Layer Documentation (`.github/README.md`):**
+   - Comprehensive documentation detailing workflow pipeline flow, event triggers, workload-to-ECR mapping table, AWS OIDC authentication model, and local validation instructions.
+
+### Verification Performed:
+- **Workflow Static & Structural Validation:** 100% pass rate via `.github/validate_workflows.py` (syntax, triggers, dependencies, permissions, ECR mappings, and secret safety).
+- **Referenced File Existence:** Verified that all Dockerfiles, dependency files, and 18 Kubernetes manifests referenced by workflows exist in the repository.
+- **Workload & ECR Consistency:** Verified exact alignment between Terraform ECR repositories (`forgecloud-apps`, `sample-backend-service`), workflow image references, and Kubernetes deployment container names.
+- **Host Backend Regression Test Suite:** 60/60 tests passing (100% success rate, 0 regressions across Phase 1-5).
+- **Host Frontend Production Build:** Vite production build 100% successful (`✓ 1653 modules transformed`, 0 errors).
+- **Kubernetes Static Validation:** 18/18 manifests passed all checks (100% success rate via `kubernetes/validate_k8s.py`).
+- **Strict Boundary Control:** Verified that no Argo CD manifests, Prometheus/Grafana configs, or autoscaling/rollback code were introduced (zero Phase 9+ work).
+
+---
+
+## 10. Cloud Verification Notice
 
 Per Project Rule 10:
 > **`NOT VERIFIED — REQUIRES AWS ENVIRONMENT`**
 
-In accordance with project guardrails, no real AWS account was configured, no AWS credentials were authenticated, and neither `terraform apply` nor `terraform destroy` was executed. All live cloud operations will remain strictly classified as `NOT VERIFIED — REQUIRES AWS ENVIRONMENT` until an active AWS environment is configured for deployment.
+In accordance with project guardrails, no real AWS account was configured, no AWS credentials were authenticated, and neither `terraform apply` nor `terraform destroy` was executed. All live cloud operations (OIDC role assumption, ECR push, EKS kubeconfig updates, and live Kubernetes deployment) will remain strictly classified as `NOT VERIFIED — REQUIRES AWS ENVIRONMENT` until an active AWS environment is configured for deployment.
